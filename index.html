@@ -1,9 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Annmarie Residency - Geo AR</title>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Preview: anne_m Sculpture</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/three.js/build/ar-threex-location-only.js"></script>
@@ -15,31 +13,23 @@
       embedded
       arjs="sourceType: webcam; debugUIEnabled: false;">
       
-      <a-camera gps-new-camera="simulateLatitude: 38.344935; simulateLongitude: -76.452228" rotation-reader></a-camera>
+      <a-camera 
+        gps-new-camera="simulateLatitude: 38.344935; simulateLongitude: -76.452228" 
+        rotation-reader>
+      </a-camera>
 
       <a-assets>
         <a-asset-item id="sculpture-model" src="anne_m.glb"></a-asset-item>
       </a-assets>
 
       <a-entity 
-        id="sculpture-anchor"
-        gps-new-entity-place="latitude: 38.344935; longitude: -76.452228;"
+        id="preview-sculpture"
+        gps-new-entity-place="latitude: 38.344940; longitude: -76.452228;"
         gltf-model="#sculpture-model"
         scale="1 1 1"
         rotation="0 0 0">
       </a-entity>
 
     </a-scene>
-
-    <script>
-      // Quick debug to see if the model is loading or failing
-      const el = document.querySelector('#sculpture-anchor');
-      el.addEventListener('model-loaded', () => {
-        console.log("anne_m loaded successfully at the garden coordinates.");
-      });
-      el.addEventListener('model-error', (err) => {
-        console.error("Error loading anne_m:", err);
-      });
-    </script>
   </body>
 </html>
