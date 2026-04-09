@@ -1,16 +1,13 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Live Preview: anne_m</title>
+    <title>Debug: Where is anne_m?</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/three.js/build/ar-threex-location-only.js"></script>
   </head>
   <body style="margin: 0; overflow: hidden;">
-    <a-scene 
-      vr-mode-ui="enabled: false"
-      embedded 
-      arjs="sourceType: webcam; debugUIEnabled: false;">
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true;">
       
       <a-camera gps-new-camera rotation-reader></a-camera>
 
@@ -18,22 +15,28 @@
         <a-asset-item id="sculpture" src="anne_m.glb"></a-asset-item>
       </a-assets>
 
-      <a-entity id="model-anchor" gltf-model="#sculpture" scale="1 1 1"></a-entity>
+      <a-entity id="test-anchor">
+        <a-entity 
+          gltf-model="#sculpture" 
+          scale="5 5 5" 
+          position="0 0 0">
+        </a-entity>
+
+        <a-box material="color: red; opacity: 0.5" scale="2 2 2" position="0 1 0"></a-box>
+      </a-entity>
+
     </a-scene>
 
     <script>
       window.onload = () => {
-        navigator.geolocation.getCurrentPosition((position) => {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
+        navigator.geolocation.getCurrentPosition((pos) => {
+          // Drops it 3 meters in front of wherever you are standing NOW
+          const lat = pos.coords.latitude + 0.00003;
+          const lon = pos.coords.longitude;
           
-          // Place the model about 5 meters (~15 feet) North of you
-          const offsetLat = lat + 0.00005; 
-          
-          const anchor = document.querySelector('#model-anchor');
-          anchor.setAttribute('gps-new-entity-place', `latitude: ${offsetLat}; longitude: ${lon};`);
-          
-          console.log(`Model placed at: ${offsetLat}, ${lon}`);
+          const anchor = document.querySelector('#test-anchor');
+          anchor.setAttribute('gps-new-entity-place', `latitude: ${lat}; longitude: ${lon};`);
+          alert("Model placed nearby! Look around for a Red Box.");
         });
       };
     </script>
