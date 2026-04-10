@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Qrcky AR - Final Stabilized Build</title>
+    <title>Qrcky AR - Transparency Fix</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
@@ -10,30 +10,37 @@
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-location-only.js"></script>
 
     <style>
+      /* Force the webcam to the background */
+      video {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: -1;
+      }
       #debug-ui {
         position: fixed; top: 10px; left: 10px; z-index: 999;
         color: #00ff00; background: rgba(0,0,0,0.85); padding: 12px;
         font-family: monospace; font-size: 11px; pointer-events: none;
-        border-radius: 4px; border: 1px solid #00ff00;
+        border: 1px solid #00ff00;
       }
       #start-btn {
         position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
         z-index: 1000; padding: 18px 45px; background: #00ff00; color: black;
         border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
-        box-shadow: 0 4px 15px rgba(0,255,0,0.3);
       }
     </style>
   </head>
 
-  <body style="margin: 0; overflow: hidden;">
-    <div id="debug-ui">System: Ready. Waiting for User...</div>
-    <button id="start-btn">INITIALIZE EXPERIENCE</button>
+  <body style="margin: 0; overflow: hidden; background-color: transparent;">
+    <div id="debug-ui">System: Ready.</div>
+    <button id="start-btn">INITIALIZE AR</button>
 
     <a-scene
       vr-mode-ui="enabled: false"
       embedded
-      renderer="colorManagement: true; exposure: 1.2;"
-      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;">
+      renderer="colorManagement: true; exposure: 1.2; antialias: true; alpha: true;"
+      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
+      background="transparent: true">
       
       <a-assets>
         <a-asset-item id="sculpture" src="anne_m.glb"></a-asset-item>
@@ -49,7 +56,6 @@
         gltf-model="#sculpture"
         gps-new-entity-place="latitude: 0; longitude: 0;"
         scale="3 3 3"
-        rotation="0 0 0"
         visible="false">
       </a-entity>
 
@@ -60,29 +66,21 @@
       const startBtn = document.getElementById('start-btn');
       const model = document.querySelector('#sculpture-anchor');
       
-      const testMode = true; // KEEP TRUE for your current neighborhood test
-      const gardenLat = 38.344935;
-      const gardenLon = -76.452228;
+      const testMode = true; 
 
       startBtn.onclick = async () => {
-        startBtn.innerText = "STARTING...";
-        
         try {
-          // Fix 3: Force iOS Camera Permission Gesture
           await navigator.mediaDevices.getUserMedia({ video: true });
           startBtn.style.display = 'none';
-          debug.innerText = "Camera: OK\nSearching for GPS...";
-
+          
           navigator.geolocation.watchPosition((pos) => {
             const { latitude, longitude, accuracy } = pos.coords;
             
-            // Fix 4: Higher accuracy threshold for suburban/wooded areas
             if (accuracy < 80) {
-              debug.innerText = `Acc: ${accuracy.toFixed(1)}m\nLat: ${latitude.toFixed(5)}\nStatus: Model Injected`;
+              debug.innerText = `Acc: ${accuracy.toFixed(1)}m\nLat: ${latitude.toFixed(5)}\nStatus: Rendering`;
               model.setAttribute('visible', 'true');
 
               if (testMode) {
-                // Fix 5: Offset for local testing
                 const offsetLat = latitude + 0.00005;
                 model.setAttribute('gps-new-entity-place', {
                   latitude: offsetLat,
@@ -90,35 +88,19 @@
                 });
               } else {
                 model.setAttribute('gps-new-entity-place', {
-                  latitude: gardenLat,
-                  longitude: gardenLon
+                  latitude: 38.344935,
+                  longitude: -76.452228
                 });
               }
-            } else {
-              debug.innerText = `Acc: ${accuracy.toFixed(1)}m (Too low)\nWalk to a clearer area...`;
             }
           }, (err) => {
             debug.innerText = "GPS Error: " + err.message;
           }, { enableHighAccuracy: true });
 
         } catch (err) {
-          debug.innerText = "Error: Camera Access Denied.";
+          debug.innerText = "Camera Blocked. Check Settings.";
         }
       };
-
-      // Fix 6: Safe Mesh Traversal
-      model.addEventListener('model-loaded', () => {
-        const mesh = model.getObject3D('mesh');
-        if (!mesh) return; 
-
-        mesh.traverse(node => {
-          if (node.isMesh) {
-            node.material.depthWrite = true;
-            node.material.transparent = false;
-          }
-        });
-        console.log("anne_m: Ready and Traversable");
-      });
     </script>
   </body>
 </html>
