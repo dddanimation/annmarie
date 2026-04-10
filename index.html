@@ -1,1 +1,110 @@
-<!DOCTYPE html> <html> <head> <title>Qrcky AR - High-Vis Build</title> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script> <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script> <script src="https://raw.githack.com/AR-js-org/AR.js/master/three.js/build/ar-threex-location-only.js"></script> <style> #debug-ui { position: fixed; top: 10px; left: 10px; z-index: 999; color: #00ff00; background: rgba(0,0,0,0.8); padding: 10px; font-family: monospace; font-size: 11px; pointer-events: none; } #start-btn { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1000; padding: 15px 40px; background: #00ff00; color: black; border: none; border-radius: 5px; font-weight: bold; } </style> </head> <body style="margin: 0; overflow: hidden;"> <div id="debug-ui">Waiting for Initialize...</div> <button id="start-btn">INITIALIZE AR</button> <a-scene vr-mode-ui="enabled: false" embedded renderer="colorManagement: true; exposure: 1.5; logarithmicDepthBuffer: true;" arjs="sourceType: webcam; debugUIEnabled: false;"> <a-assets> <a-asset-item id="sculpture" src="anne_m.glb"></a-asset-item> </a-assets> <a-entity light="type: ambient; intensity: 2.5;"></a-entity> <a-entity light="type: directional; intensity: 1.5;" position="1 4 3"></a-entity> <a-camera gps-new-camera="gpsMinDistance: 1;" rotation-reader></a-camera> <a-entity id="sculpture-anchor" gltf-model="#sculpture" scale="3 3 3" rotation="0 0 0" visible="false"> </a-entity> </a-scene> <script> const debug = document.getElementById('debug-ui'); const startBtn = document.getElementById('start-btn'); const model = document.querySelector('#sculpture-anchor'); // Keep this TRUE while you are 400ft from home const testMode = true; startBtn.onclick = () => { startBtn.style.display = 'none'; debug.innerText = "Searching for GPS..."; navigator.geolocation.watchPosition((pos) => { const { latitude, longitude, accuracy } = pos.coords; debug.innerText = GPS Acc: ${accuracy.toFixed(1)}m\nLat: ${latitude.toFixed(5)}\nStatus: Model Injected; if (accuracy < 40) { model.setAttribute('visible', 'true'); if (testMode) { // Placed roughly 5 meters North of your current standing position const offsetLat = latitude + 0.00005; model.setAttribute('gps-new-entity-place', latitude: ${offsetLat}; longitude: ${longitude};); } else { // The final Annmarie Sculpture Garden location model.setAttribute('gps-new-entity-place', latitude: 38.344935; longitude: -76.452228;); } } }, (err) => { debug.innerText = "GPS Error: " + err.message; }, { enableHighAccuracy: true }); }; // Ensure textures are handled correctly on load model.addEventListener('model-loaded', () => { const mesh = model.getObject3D('mesh'); mesh.traverse(node => { if (node.isMesh) { node.material.depthWrite = true; node.material.transparent = false; } }); }); </script> </body> </html>
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Qrcky AR - Auto-Start High-Vis</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-location-only.js"></script>
+
+    <style>
+      /* Force the webcam to show through the background */
+      video {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: -1;
+      }
+      #debug-ui {
+        position: fixed; top: 10px; left: 10px; z-index: 999;
+        color: #00ff00; background: rgba(0,0,0,0.8); padding: 10px;
+        font-family: monospace; font-size: 11px; pointer-events: none;
+      }
+    </style>
+  </head>
+
+  <body style="margin: 0; overflow: hidden; background-color: transparent;">
+    <div id="debug-ui">System: Initializing GPS...</div>
+
+    <a-scene
+      vr-mode-ui="enabled: false"
+      embedded
+      renderer="colorManagement: true; exposure: 1.5; logarithmicDepthBuffer: true; alpha: true;"
+      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
+      background="transparent: true">
+      
+      <a-assets>
+        <a-asset-item id="sculpture" src="anne_m.glb"></a-asset-item>
+      </a-assets>
+
+      <a-entity light="type: ambient; intensity: 2.5;"></a-entity>
+      <a-entity light="type: directional; intensity: 1.5;" position="1 4 3"></a-entity>
+
+      <a-camera gps-new-camera="gpsMinDistance: 1;" rotation-reader></a-camera>
+
+      <a-entity 
+        id="sculpture-anchor"
+        gltf-model="#sculpture"
+        gps-new-entity-place="latitude: 0; longitude: 0;"
+        scale="3 3 3"
+        rotation="0 0 0"
+        visible="false">
+      </a-entity>
+
+    </a-scene>
+
+    <script>
+      const debug = document.getElementById('debug-ui');
+      const model = document.querySelector('#sculpture-anchor');
+      
+      // Keep this TRUE while you are 400ft from home to see the model nearby
+      const testMode = true; 
+      const gardenLat = 38.344935;
+      const gardenLon = -76.452228;
+
+      window.onload = () => {
+        // Automatically request GPS tracking
+        navigator.geolocation.watchPosition((pos) => {
+          const { latitude, longitude, accuracy } = pos.coords;
+          debug.innerText = `Acc: ${accuracy.toFixed(1)}m\nLat: ${latitude.toFixed(5)}\nStatus: Tracking`;
+
+          // Threshold set to 80m for better stability in suburban areas
+          if (accuracy < 80) {
+            model.setAttribute('visible', 'true');
+            if (testMode) {
+              // Placed roughly 5 meters North for local testing
+              const offsetLat = latitude + 0.00005;
+              model.setAttribute('gps-new-entity-place', {
+                latitude: offsetLat,
+                longitude: longitude
+              });
+            } else {
+              // Final Garden location
+              model.setAttribute('gps-new-entity-place', {
+                latitude: gardenLat,
+                longitude: gardenLon
+              });
+            }
+          }
+        }, (err) => {
+          debug.innerText = "GPS Error: " + err.message;
+        }, { enableHighAccuracy: true });
+      };
+
+      // Ensure textures and transparency are handled on load
+      model.addEventListener('model-loaded', () => {
+        const mesh = model.getObject3D('mesh');
+        if (mesh) {
+            mesh.traverse(node => {
+                if (node.isMesh) {
+                    node.material.depthWrite = true;
+                    node.material.transparent = false;
+                }
+            });
+        }
+        console.log("anne_m model loaded.");
+      });
+    </script>
+  </body>
+</html>
