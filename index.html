@@ -1,61 +1,50 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Qrcky AR - Transparency Fix</title>
+    <title>Qrcky AR - Pure Location Build</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/three.js/build/ar-threex-location-only.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-location-only.js"></script>
 
     <style>
-      /* Force the webcam to the background */
-      video {
-        position: fixed;
-        top: 0;
-        left: 0;
-        z-index: -1;
-      }
       #debug-ui {
         position: fixed; top: 10px; left: 10px; z-index: 999;
-        color: #00ff00; background: rgba(0,0,0,0.85); padding: 12px;
+        color: #00ff00; background: rgba(0,0,0,0.8); padding: 10px;
         font-family: monospace; font-size: 11px; pointer-events: none;
-        border: 1px solid #00ff00;
       }
       #start-btn {
         position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-        z-index: 1000; padding: 18px 45px; background: #00ff00; color: black;
-        border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
+        z-index: 1000; padding: 15px 40px; background: #00ff00; color: black;
+        border: none; border-radius: 5px; font-weight: bold; cursor: pointer;
       }
     </style>
   </head>
 
-  <body style="margin: 0; overflow: hidden; background-color: transparent;">
-    <div id="debug-ui">System: Ready.</div>
+  <body style="margin: 0; overflow: hidden;">
+    <div id="debug-ui">System: Standby. Tap Start.</div>
     <button id="start-btn">INITIALIZE AR</button>
 
     <a-scene
       vr-mode-ui="enabled: false"
       embedded
-      renderer="colorManagement: true; exposure: 1.2; antialias: true; alpha: true;"
-      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
-      background="transparent: true">
+      renderer="colorManagement: true; exposure: 1.5;"
+      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;">
       
       <a-assets>
         <a-asset-item id="sculpture" src="anne_m.glb"></a-asset-item>
       </a-assets>
 
-      <a-entity light="type: ambient; intensity: 1.2;"></a-entity>
-      <a-entity light="type: directional; intensity: 0.8;" position="1 4 3"></a-entity>
+      <a-camera gps-new-camera="gpsMinDistance: 1;"></a-camera>
 
-      <a-camera gps-new-camera="gpsMinDistance: 1;" look-controls-enabled="true"></a-camera>
+      <a-entity light="type: ambient; intensity: 2.0;"></a-entity>
+      <a-entity light="type: directional; intensity: 1.0;" position="1 2 1"></a-entity>
 
       <a-entity 
         id="sculpture-anchor"
         gltf-model="#sculpture"
-        gps-new-entity-place="latitude: 0; longitude: 0;"
-        scale="3 3 3"
+        scale="1 1 1"
         visible="false">
       </a-entity>
 
@@ -66,41 +55,42 @@
       const startBtn = document.getElementById('start-btn');
       const model = document.querySelector('#sculpture-anchor');
       
-      const testMode = true; 
+      const testMode = true; // Still set to true for your local test
+      const gardenLat = 38.344935;
+      const gardenLon = -76.452228;
 
-      startBtn.onclick = async () => {
-        try {
-          await navigator.mediaDevices.getUserMedia({ video: true });
-          startBtn.style.display = 'none';
+      startBtn.onclick = () => {
+        startBtn.style.display = 'none';
+        debug.innerText = "Connecting to Satellites...";
+        
+        // This build uses the 'gps-new-camera' component logic
+        window.addEventListener('gps-camera-update-position', (e) => {
+          const { latitude, longitude } = e.detail.position;
+          const accuracy = e.detail.position.accuracy || 0;
           
-          navigator.geolocation.watchPosition((pos) => {
-            const { latitude, longitude, accuracy } = pos.coords;
-            
-            if (accuracy < 80) {
-              debug.innerText = `Acc: ${accuracy.toFixed(1)}m\nLat: ${latitude.toFixed(5)}\nStatus: Rendering`;
-              model.setAttribute('visible', 'true');
+          debug.innerText = `Acc: ${accuracy.toFixed(1)}m\nLat: ${latitude.toFixed(5)}\nMode: ${testMode ? 'Testing' : 'Garden'}`;
 
-              if (testMode) {
-                const offsetLat = latitude + 0.00005;
-                model.setAttribute('gps-new-entity-place', {
-                  latitude: offsetLat,
-                  longitude: longitude
-                });
-              } else {
-                model.setAttribute('gps-new-entity-place', {
-                  latitude: 38.344935,
-                  longitude: -76.452228
-                });
-              }
-            }
-          }, (err) => {
-            debug.innerText = "GPS Error: " + err.message;
-          }, { enableHighAccuracy: true });
-
-        } catch (err) {
-          debug.innerText = "Camera Blocked. Check Settings.";
-        }
+          model.setAttribute('visible', 'true');
+          
+          if (testMode) {
+            // Drops it slightly North of your current neighbors-yard spot
+            const offsetLat = latitude + 0.00005;
+            model.setAttribute('gps-new-entity-place', `latitude: ${offsetLat}; longitude: ${longitude};`);
+          } else {
+            model.setAttribute('gps-new-entity-place', `latitude: ${gardenLat}; longitude: ${gardenLon};`);
+          }
+        });
       };
+
+      // Ensure model transparency/depth is handled for the baked stripes
+      model.addEventListener('model-loaded', () => {
+        const mesh = model.getObject3D('mesh');
+        mesh.traverse(node => {
+          if (node.isMesh) {
+            node.material.depthWrite = true;
+          }
+        });
+      });
     </script>
   </body>
 </html>
