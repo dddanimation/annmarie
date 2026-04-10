@@ -1,50 +1,45 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Qrcky AR - High-Vis GPS</title>
+    <title>Qrcky AR - Faren Stabilized</title>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
     <style>
-      /* CRITICAL: Force the white background to be transparent */
       body, html { background-color: transparent; margin: 0; overflow: hidden; }
       #debug-ui {
-        position: fixed; top: 10px; left: 10px; z-index: 999;
-        color: #00ff00; background: rgba(0,0,0,0.8); padding: 10px;
+        position: fixed; top: 10px; left: 10px; z-index: 1000;
+        color: #00ff00; background: rgba(0,0,0,0.85); padding: 10px;
         font-family: monospace; font-size: 11px; pointer-events: none;
+        border: 1px solid #00ff00;
       }
-      /* Ensure the camera feed stays behind the AR */
-      .a-canvas { z-index: 2; }
-      video { z-index: 1; }
     </style>
   </head>
 
   <body>
-    <div id="debug-ui">TAP SCREEN TO START GPS</div>
+    <div id="debug-ui">System: Calibrating...</div>
 
     <a-scene
       embedded
       vr-mode-ui="enabled: false"
-      renderer="alpha: true; colorManagement: true; exposure: 1.5;"
+      renderer="alpha: true; colorManagement: true; exposure: 1.2;"
       arjs="sourceType: webcam; debugUIEnabled: false;"
       background="transparent: true">
       
       <a-assets>
-        <a-asset-item id="sculpture" src="anne_m.glb"></a-asset-item>
+        <a-asset-item id="faren-model" src="anne_m.glb"></a-asset-item>
       </a-assets>
 
-      <a-entity light="type: ambient; intensity: 2.0;"></a-entity>
-      <a-entity light="type: directional; intensity: 1" position="1 2 1"></a-entity>
+      <a-entity light="type: ambient; intensity: 1.8;"></a-entity>
+      <a-entity light="type: directional; intensity: 1" position="1 4 3"></a-entity>
 
-      <a-camera gps-camera rotation-reader></a-camera>
+      <a-camera gps-camera rotation-reader look-controls></a-camera>
 
       <a-entity 
-        id="model-anchor"
-        gltf-model="#sculpture"
-        scale="3 3 3"
+        id="faren-anchor"
+        gltf-model="#faren-model"
+        scale="4 4 4" 
         visible="false">
       </a-entity>
 
@@ -52,39 +47,51 @@
 
     <script>
       const debug = document.getElementById('debug-ui');
-      const model = document.querySelector('#model-anchor');
+      const model = document.querySelector('#faren-anchor');
       
-      const testMode = true; // Still TRUE for local testing
-      const gardenLat = 38.344935;
-      const gardenLon = -76.452228;
+      // CRITICAL: Set this to FALSE now that you are at the garden!
+      const testMode = false; 
+      
+      const targetLat = 38.344935;
+      const targetLon = -76.452228;
 
-      // Click anywhere to trigger the GPS and Camera permissions
+      // Smoothing variables
+      let lastLat = null;
+      let lastLon = null;
+      const alpha = 0.1; // Lower = smoother but slower; Higher = more jumpy
+
       window.onclick = () => {
-        debug.innerText = "Locating...";
+        debug.innerText = "GPS Lock Engaged";
         
         navigator.geolocation.watchPosition((pos) => {
-          const { latitude, longitude, accuracy } = pos.coords;
-          debug.innerText = `Acc: ${accuracy.toFixed(1)}m\nLat: ${latitude.toFixed(5)}`;
+          let { latitude, longitude, accuracy } = pos.coords;
+
+          // Apply Smoothing (Low-pass filter)
+          if (lastLat === null) {
+            lastLat = latitude;
+            lastLon = longitude;
+          } else {
+            lastLat = (lastLat * (1 - alpha)) + (latitude * alpha);
+            lastLon = (lastLon * (1 - alpha)) + (longitude * alpha);
+          }
+
+          debug.innerText = `Acc: ${accuracy.toFixed(1)}m\nLat: ${lastLat.toFixed(5)}\nStatus: FIXED ANCHOR`;
 
           if (accuracy < 80) {
             model.setAttribute('visible', 'true');
             
             if (testMode) {
-              // 5 meters North of your current spot
-              const offsetLat = latitude + 0.00005;
-              model.setAttribute('gps-entity-place', `latitude: ${offsetLat}; longitude: ${longitude};`);
+              // Only use this at home!
+              model.setAttribute('gps-entity-place', `latitude: ${lastLat + 0.00005}; longitude: ${lastLon};`);
             } else {
-              model.setAttribute('gps-entity-place', `latitude: ${gardenLat}; longitude: ${gardenLon};`);
+              // LIVE AT GARDEN: Faren stays at the specific path coordinate
+              model.setAttribute('gps-entity-place', `latitude: ${targetLat}; longitude: ${targetLon};`);
             }
           }
         }, (err) => {
           debug.innerText = "GPS Error: " + err.message;
-        }, { enableHighAccuracy: true });
+        }, { enableHighAccuracy: true, maximumAge: 1000 });
       };
-
-      model.addEventListener('model-loaded', () => {
-        console.log("anne_m loaded");
-      });
     </script>
   </body>
 </html>
