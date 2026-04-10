@@ -1,38 +1,43 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Qrcky AR - Annmarie Garden Test</title>
+    <title>Qrcky AR - Studio Debug</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/three.js/build/ar-threex-location-only.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-location-only.js"></script>
 
     <style>
-      video { position: fixed; top: 0; left: 0; z-index: -1; }
+      /* FORCE everything behind the A-Frame canvas to be visible */
+      html, body { background-color: transparent !important; margin: 0; overflow: hidden; }
+      
+      /* Force the webcam video to the bottom layer */
+      canvas.a-canvas { z-index: 2; }
+      video#arjs-video { position: fixed; top: 0; left: 0; z-index: 1; }
+
       #debug-ui {
         position: fixed; top: 10px; left: 10px; z-index: 999;
-        color: #00ff00; background: rgba(0,0,0,0.85); padding: 12px;
+        color: #00ff00; background: rgba(0,0,0,0.8); padding: 10px;
         font-family: monospace; font-size: 11px; pointer-events: none;
-        border: 1px solid #00ff00; border-radius: 4px;
+        border: 1px solid #00ff00;
       }
       #start-btn {
         position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-        z-index: 1000; padding: 18px 45px; background: #00ff00; color: black;
-        border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
+        z-index: 1000; padding: 15px 30px; background: #00ff00; color: black;
+        border: none; border-radius: 5px; font-weight: bold; cursor: pointer;
       }
     </style>
   </head>
 
-  <body style="margin: 0; overflow: hidden; background-color: transparent;">
-    <div id="debug-ui">System: Ready. Standing by for GPS...</div>
-    <button id="start-btn">BEGIN EXPERIENCE</button>
+  <body>
+    <div id="debug-ui">MODE: Waiting...</div>
+    <button id="start-btn">INITIALIZE STUDIO MODE</button>
 
     <a-scene
       vr-mode-ui="enabled: false"
       embedded
-      renderer="colorManagement: true; exposure: 1.2; antialias: true; alpha: true;"
+      renderer="colorManagement: true; alpha: true; antialias: true;"
       arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
       background="transparent: true">
       
@@ -40,66 +45,64 @@
         <a-asset-item id="sculpture" src="anne_m.glb"></a-asset-item>
       </a-assets>
 
-      <a-entity light="type: ambient; intensity: 1.2;"></a-entity>
+      <a-entity light="type: ambient; intensity: 1.5;"></a-entity>
       <a-entity light="type: directional; intensity: 0.8;" position="1 4 3"></a-entity>
 
-      <a-camera gps-new-camera="gpsMinDistance: 1;" look-controls-enabled="true"></a-camera>
+      <a-camera id="cam" gps-new-camera="gpsMinDistance: 1;" look-controls></a-camera>
 
       <a-entity 
         id="sculpture-anchor"
         gltf-model="#sculpture"
-        gps-new-entity-place="latitude: 38.344935; longitude: -76.452228;"
-        scale="3 3 3"
+        scale="1 1 1"
         visible="false">
       </a-entity>
 
     </a-scene>
 
     <script>
+      /* ==========================================
+         TOGGLE THIS FOR TESTING:
+         true  = See it in your room right now (No GPS)
+         false = Lock to the Garden (Requires GPS)
+         ========================================== */
+      const DEVELOPMENT_MODE = true; 
+
       const debug = document.getElementById('debug-ui');
       const startBtn = document.getElementById('start-btn');
       const model = document.querySelector('#sculpture-anchor');
       
-      /* SET THIS TO:
-         false = Lock to the Garden coordinates (38.344935, -76.452228)
-         true  = Place it 5 meters in front of wherever you are standing now
-      */
-      const testMode = false; 
-
       startBtn.onclick = async () => {
         try {
+          // Trigger camera permission
           await navigator.mediaDevices.getUserMedia({ video: true });
           startBtn.style.display = 'none';
-          
-          window.addEventListener('gps-camera-update-position', (e) => {
-            const { latitude, longitude } = e.detail.position;
-            const accuracy = e.detail.position.accuracy;
-            
-            debug.innerText = `Acc: ${accuracy.toFixed(1)}m\nLat: ${latitude.toFixed(5)}\nMode: ${testMode ? 'Local Test' : 'Garden Live'}`;
 
-            if (accuracy < 80) {
-              model.setAttribute('visible', 'true');
-              
-              if (testMode) {
-                // Testing locally (next door)
-                const offsetLat = latitude + 0.00005;
-                model.setAttribute('gps-new-entity-place', {
-                  latitude: offsetLat,
-                  longitude: longitude
-                });
-              } else {
-                // The Real Target
-                model.setAttribute('gps-new-entity-place', {
-                  latitude: 38.344935,
-                  longitude: -76.452228
-                });
-              }
-            }
-          });
+          if (DEVELOPMENT_MODE) {
+            debug.innerText = "MODE: STUDIO (Indoor)\nModel placed 3m ahead.";
+            model.setAttribute('visible', 'true');
+            // Simply place the model 3 meters in front of where the camera starts
+            model.setAttribute('position', '0 0 -3'); 
+          } else {
+            debug.innerText = "MODE: GARDEN (GPS)\nSearching for satellites...";
+            setupGPS();
+          }
         } catch (err) {
-          debug.innerText = "Error: Camera Access Refused.";
+          debug.innerText = "Error: Camera Access Denied.";
         }
       };
+
+      function setupGPS() {
+        window.addEventListener('gps-camera-update-position', (e) => {
+          const { latitude, longitude, accuracy } = e.detail.position;
+          debug.innerText = `GPS Acc: ${accuracy.toFixed(1)}m\nLat: ${latitude.toFixed(5)}\nStatus: LIVE`;
+          
+          model.setAttribute('visible', 'true');
+          model.setAttribute('gps-new-entity-place', {
+            latitude: 38.344935, 
+            longitude: -76.452228
+          });
+        });
+      }
 
       model.addEventListener('model-loaded', () => {
         const mesh = model.getObject3D('mesh');
@@ -111,7 +114,6 @@
             }
           });
         }
-        console.log("Model loaded successfully.");
       });
     </script>
   </body>
