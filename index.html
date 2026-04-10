@@ -1,31 +1,35 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Qrcky AR - Garden Final</title>
+    <title>Qrcky AR - High-Vis GPS</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-location-only.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
     <style>
-      video { position: fixed; top: 0; left: 0; z-index: -1; }
+      /* CRITICAL: Force the white background to be transparent */
+      body, html { background-color: transparent; margin: 0; overflow: hidden; }
       #debug-ui {
         position: fixed; top: 10px; left: 10px; z-index: 999;
         color: #00ff00; background: rgba(0,0,0,0.8); padding: 10px;
         font-family: monospace; font-size: 11px; pointer-events: none;
       }
+      /* Ensure the camera feed stays behind the AR */
+      .a-canvas { z-index: 2; }
+      video { z-index: 1; }
     </style>
   </head>
 
-  <body style="margin: 0; overflow: hidden; background-color: transparent;">
-    <div id="debug-ui">System: Finding Satellites...</div>
+  <body>
+    <div id="debug-ui">TAP SCREEN TO START GPS</div>
 
     <a-scene
-      vr-mode-ui="enabled: false"
       embedded
-      renderer="colorManagement: true; exposure: 1.5; alpha: true;"
-      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
+      vr-mode-ui="enabled: false"
+      renderer="alpha: true; colorManagement: true; exposure: 1.5;"
+      arjs="sourceType: webcam; debugUIEnabled: false;"
       background="transparent: true">
       
       <a-assets>
@@ -33,14 +37,13 @@
       </a-assets>
 
       <a-entity light="type: ambient; intensity: 2.0;"></a-entity>
-      <a-entity light="type: directional; intensity: 1.0;" position="1 4 3"></a-entity>
+      <a-entity light="type: directional; intensity: 1" position="1 2 1"></a-entity>
 
-      <a-camera gps-new-camera="gpsMinDistance: 1;" rotation-reader></a-camera>
+      <a-camera gps-camera rotation-reader></a-camera>
 
       <a-entity 
-        id="sculpture-anchor"
+        id="model-anchor"
         gltf-model="#sculpture"
-        gps-new-entity-place="latitude: 0; longitude: 0;"
         scale="3 3 3"
         visible="false">
       </a-entity>
@@ -49,34 +52,29 @@
 
     <script>
       const debug = document.getElementById('debug-ui');
-      const model = document.querySelector('#sculpture-anchor');
+      const model = document.querySelector('#model-anchor');
       
-      /* true  = Drops it 5 meters in front of you (local test)
-         false = Locks it to the Garden (38.344935, -76.452228)
-      */
-      const testMode = true; 
+      const testMode = true; // Still TRUE for local testing
+      const gardenLat = 38.344935;
+      const gardenLon = -76.452228;
 
-      window.onload = () => {
+      // Click anywhere to trigger the GPS and Camera permissions
+      window.onclick = () => {
+        debug.innerText = "Locating...";
+        
         navigator.geolocation.watchPosition((pos) => {
           const { latitude, longitude, accuracy } = pos.coords;
-          debug.innerText = `Acc: ${accuracy.toFixed(1)}m\nMode: ${testMode ? 'LOCAL TEST' : 'GARDEN LIVE'}`;
+          debug.innerText = `Acc: ${accuracy.toFixed(1)}m\nLat: ${latitude.toFixed(5)}`;
 
           if (accuracy < 80) {
             model.setAttribute('visible', 'true');
             
             if (testMode) {
-              // Local Test: 5 meters North of your current spot
+              // 5 meters North of your current spot
               const offsetLat = latitude + 0.00005;
-              model.setAttribute('gps-new-entity-place', {
-                latitude: offsetLat,
-                longitude: longitude
-              });
+              model.setAttribute('gps-entity-place', `latitude: ${offsetLat}; longitude: ${longitude};`);
             } else {
-              // Final Garden coordinates
-              model.setAttribute('gps-new-entity-place', {
-                latitude: 38.344935, 
-                longitude: -76.452228
-              });
+              model.setAttribute('gps-entity-place', `latitude: ${gardenLat}; longitude: ${gardenLon};`);
             }
           }
         }, (err) => {
@@ -84,17 +82,8 @@
         }, { enableHighAccuracy: true });
       };
 
-      // Model cleanup
       model.addEventListener('model-loaded', () => {
-        const mesh = model.getObject3D('mesh');
-        if (mesh) {
-            mesh.traverse(node => {
-                if (node.isMesh) {
-                    node.material.depthWrite = true;
-                    node.material.transparent = false;
-                }
-            });
-        }
+        console.log("anne_m loaded");
       });
     </script>
   </body>
