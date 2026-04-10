@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Qrcky AR - High-Vis Build</title>
+    <title>Qrcky AR - anne_m Recovery</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
@@ -11,44 +11,42 @@
     <style>
       #debug-ui {
         position: fixed; top: 10px; left: 10px; z-index: 999;
-        color: #00ff00; background: rgba(0,0,0,0.8); padding: 10px;
-        font-family: monospace; font-size: 11px; pointer-events: none;
+        color: white; background: rgba(0,0,0,0.7); padding: 10px;
+        font-family: sans-serif; font-size: 12px; pointer-events: none;
       }
       #start-btn {
-        position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-        z-index: 1000; padding: 15px 40px; background: #00ff00; color: black;
-        border: none; border-radius: 5px; font-weight: bold;
+        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+        z-index: 1000; padding: 15px 30px; background: #00ff00; border: none;
+        border-radius: 50px; font-weight: bold; cursor: pointer;
       }
     </style>
   </head>
 
   <body style="margin: 0; overflow: hidden;">
-    <div id="debug-ui">Waiting for Initialize...</div>
-    <button id="start-btn">INITIALIZE AR</button>
+    <div id="debug-ui">Status: Waiting for Start...</div>
+    <button id="start-btn">START AR</button>
 
     <a-scene
       vr-mode-ui="enabled: false"
       embedded
-      renderer="colorManagement: true; exposure: 1.5; logarithmicDepthBuffer: true;"
+      renderer="colorManagement: true; exposure: 1.5;"
       arjs="sourceType: webcam; debugUIEnabled: false;">
       
+      <a-entity light="type: ambient; intensity: 2.0;"></a-entity>
+      <a-entity light="type: directional; intensity: 1.2;" position="1 2 1"></a-entity>
+
+      <a-camera gps-new-camera="gpsMinDistance: 1;" rotation-reader></a-camera>
+
       <a-assets>
         <a-asset-item id="sculpture" src="anne_m.glb"></a-asset-item>
       </a-assets>
-
-      <a-entity light="type: ambient; intensity: 2.5;"></a-entity>
-      <a-entity light="type: directional; intensity: 1.5;" position="1 4 3"></a-entity>
-
-      <a-camera gps-new-camera="gpsMinDistance: 1;" rotation-reader></a-camera>
 
       <a-entity 
         id="sculpture-anchor"
         gltf-model="#sculpture"
         scale="1 1 1"
         rotation="0 0 0"
-        visible="false">
-      </a-entity>
-
+        visible="false"> </a-entity>
     </a-scene>
 
     <script>
@@ -56,43 +54,36 @@
       const startBtn = document.getElementById('start-btn');
       const model = document.querySelector('#sculpture-anchor');
       
-      // Keep this TRUE while you are 400ft from home
-      const testMode = true; 
+      const testMode = true; // Still using Test Mode for your neighbor's yard
+      const gardenLat = 38.344935;
+      const gardenLon = -76.452228;
 
       startBtn.onclick = () => {
         startBtn.style.display = 'none';
-        debug.innerText = "Searching for GPS...";
+        debug.innerText = "Status: Locating...";
         
         navigator.geolocation.watchPosition((pos) => {
           const { latitude, longitude, accuracy } = pos.coords;
-          debug.innerText = `GPS Acc: ${accuracy.toFixed(1)}m\nLat: ${latitude.toFixed(5)}\nStatus: Model Injected`;
+          debug.innerText = `Status: GPS Active\nAcc: ${accuracy.toFixed(1)}m\nLat: ${latitude.toFixed(5)}`;
 
-          if (accuracy < 40) {
+          if (accuracy < 30) {
             model.setAttribute('visible', 'true');
             if (testMode) {
-              // Placed roughly 5 meters North of your current standing position
+              // Drops it 5 meters North of you
               const offsetLat = latitude + 0.00005;
               model.setAttribute('gps-new-entity-place', `latitude: ${offsetLat}; longitude: ${longitude};`);
             } else {
-              // The final Annmarie Sculpture Garden location
-              model.setAttribute('gps-new-entity-place', `latitude: 38.344935; longitude: -76.452228;`);
+              model.setAttribute('gps-new-entity-place', `latitude: ${gardenLat}; longitude: ${gardenLon};`);
             }
           }
         }, (err) => {
-          debug.innerText = "GPS Error: " + err.message;
+          debug.innerText = "Status: GPS Error - " + err.message;
         }, { enableHighAccuracy: true });
       };
 
-      // Ensure textures are handled correctly on load
-      model.addEventListener('model-loaded', () => {
-        const mesh = model.getObject3D('mesh');
-        mesh.traverse(node => {
-          if (node.isMesh) {
-            node.material.depthWrite = true;
-            node.material.transparent = false;
-          }
-        });
-      });
+      // Check if the GLB actually loads
+      model.addEventListener('model-loaded', () => { console.log("anne_m GLB loaded"); });
+      model.addEventListener('model-error', (e) => { debug.innerText = "Status: GLB Load Error!"; });
     </script>
   </body>
 </html>
